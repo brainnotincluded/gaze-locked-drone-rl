@@ -110,8 +110,8 @@ class VirtualTarget:
         # Target direction in world frame
         direction = self.position / (np.linalg.norm(self.position) + 1e-8)
 
-        # Camera forward vector in world frame
-        camera_forward = np.array([np.cos(drone_yaw), np.sin(drone_yaw), 0])
+        # Camera forward vector in world frame (x, y components only)
+        camera_forward = np.array([np.cos(drone_yaw), np.sin(drone_yaw)])
 
         # Cosine similarity (1.0 = perfectly aligned, -1.0 = opposite)
         return np.dot(camera_forward, direction[:2])
