@@ -16,11 +16,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 
 from src.environment.drone_tracking_env import DroneTrackingEnv
 from src.utils.curriculum_manager import CurriculumManager
-from src.utils.callbacks import MetricsCallback
 
 # Import your existing Drone class
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -95,6 +95,12 @@ def main():
         # Create environment
         render_mode = "human" if args.visualize else None
         env = make_env(drone, curriculum, render_mode)()
+
+        # Setup monitor logging
+        monitor_dir = Path("./monitor_logs")
+        monitor_dir.mkdir(parents=True, exist_ok=True)
+        env = Monitor(env, filename=str(monitor_dir / "training_monitor.csv"))
+
         env = DummyVecEnv([lambda: env])
 
         # Create PPO agent with LSTM (RecurrentPPO)
@@ -125,17 +131,16 @@ def main():
             name_prefix="drone_tracking",
         )
 
-        metrics_callback = MetricsCallback(verbose=1)
-
         print(f"\n[*] Starting training for {args.steps} steps...")
         print(f"    Checkpoints saved to: {save_dir}")
         print(f"    TensorBoard logs: ./tensorboard/")
+        print(f"    Monitor logs: ./monitor_logs/")
         print()
 
         # Train
         model.learn(
             total_timesteps=args.steps,
-            callback=[checkpoint_callback, metrics_callback],
+            callback=checkpoint_callback,
             progress_bar=True,
         )
 
