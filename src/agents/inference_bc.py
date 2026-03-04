@@ -87,7 +87,7 @@ def inference_bc(model_path, duration=60):
     detections = 0
     start_time = time.time()
 
-    obs = env.reset()
+    obs, info = env.reset()
 
     try:
         while time.time() - start_time < duration:
@@ -98,9 +98,11 @@ def inference_bc(model_path, duration=60):
             with torch.no_grad():
                 action = model(obs_tensor).item()
 
-            # Step environment
-            obs, reward, done, info = env.step(action)
-            total_reward += reward
+            # Step environment (returns 5 values, wrap scalar action in array)
+            action_array = np.array([action], dtype=np.float32)
+            obs, reward, terminated, truncated, info = env.step(action_array)
+            done = terminated or truncated
+            total_reward += float(reward)
 
             if info.get("target_detected", False):
                 detections += 1
@@ -109,7 +111,7 @@ def inference_bc(model_path, duration=60):
 
             if done:
                 print("[!] Episode ended, reinitializing...")
-                obs = env.reset()
+                obs, info = env.reset()
 
     except KeyboardInterrupt:
         print("\n[!] Interrupted")

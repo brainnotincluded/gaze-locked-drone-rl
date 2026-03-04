@@ -58,11 +58,11 @@ class YOLOHumanEnv(gym.Env):
         # Action space: continuous yaw rate [-1.0, 1.0] (normalized)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
 
-        # Observation space: [yaw, yaw_rate, dx, dy, dz, in_fov]
-        # All normalized to [-1, 1] or [0, 1] where appropriate
+        # Observation space: [angular_error, yaw_rate]
+        # Both normalized to [-1, 1]
         self.observation_space = spaces.Box(
-            low=np.array([-1.0, -1.0, -1.0, -1.0, -1.0, 0.0]),
-            high=np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]),
+            low=np.array([-1.0, -1.0]),
+            high=np.array([1.0, 1.0]),
             dtype=np.float32,
         )
 
@@ -285,36 +285,26 @@ class YOLOHumanEnv(gym.Env):
         return obs, reward, terminated, truncated, info
 
     def _get_observation(self) -> np.ndarray:
-        """Compute current observation."""
+        """Compute current observation (2D: angular error + yaw rate)."""
         # Get drone state
-        yaw = self.drone_wrapper.get_yaw()
         yaw_rate = self.drone_wrapper.get_yaw_rate()
 
-        # Get target relative position (use current or last known)
-        if not self.target_detected:
-            # Use last known position but mark as not in FOV
-            rel_pos = self.last_target_position
-            in_fov = 0.0
-        else:
+        # Calculate angular error to target
+        if self.target_detected:
             rel_pos = self.target_position
-            in_fov = 1.0
+            # Angle = atan2(dy, dx) - this is the angle to target
+            angle_to_target = np.arctan2(rel_pos[1], rel_pos[0])
+            angular_error = angle_to_target
+        else:
+            # No target - max angular error
+            angular_error = np.pi  # Worst case: 180 degrees
 
-        # Normalize observations
-        yaw_norm = yaw / np.pi  # [-π, π] → [-1, 1]
+        # Normalize to [-1, 1]
+        angular_error_norm = np.clip(angular_error / np.pi, -1.0, 1.0)
         yaw_rate_norm = yaw_rate / self.drone_wrapper.max_yaw_rate
 
-        # Normalize relative position (approximate max distance 100m)
-        rel_pos_norm = np.clip(rel_pos / 100.0, -1.0, 1.0)
-
         obs = np.array(
-            [
-                yaw_norm,
-                yaw_rate_norm,
-                rel_pos_norm[0],  # dx (forward)
-                rel_pos_norm[1],  # dy (right)
-                rel_pos_norm[2],  # dz (up)
-                float(in_fov),
-            ],
+            [angular_error_norm, yaw_rate_norm],
             dtype=np.float32,
         )
 

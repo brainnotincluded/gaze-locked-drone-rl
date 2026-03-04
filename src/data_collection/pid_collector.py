@@ -68,7 +68,7 @@ class PIDDataCollector:
 
     def collect_episode(self, max_steps=1000, save_video=True):
         """Collect one episode of PID control data."""
-        obs = self.env.reset()
+        obs, info = self.env.reset()
         if not self.env.target_detected:
             print("[-] No target detected, skipping episode")
             return None
@@ -108,14 +108,18 @@ class PIDDataCollector:
             else:
                 action = 0.0
 
-            # Step environment
-            next_obs, reward, done, info = self.env.step(action)
+            # Step environment (wrap scalar action in array)
+            action_array = np.array([action], dtype=np.float32)
+            next_obs, reward, terminated, truncated, info = self.env.step(action_array)
+            done = terminated or truncated
 
             # Store data
-            episode_data["observations"].append(obs.copy())
-            episode_data["actions"].append(action)
-            episode_data["rewards"].append(reward)
-            episode_data["dones"].append(done)
+            episode_data["observations"].append(
+                obs.copy() if hasattr(obs, "copy") else obs
+            )
+            episode_data["actions"].append(float(action))
+            episode_data["rewards"].append(float(reward))
+            episode_data["dones"].append(bool(done))
             episode_data["target_positions"].append(
                 target.copy() if target is not None else [0, 0, 0]
             )
@@ -123,7 +127,7 @@ class PIDDataCollector:
 
             # Capture frame for video
             if save_video:
-                frame = self.env.drone.get_frame()
+                frame = self.env.drone_wrapper.drone.get_frame()
                 if frame is not None:
                     frames.append(frame)
 
@@ -134,11 +138,15 @@ class PIDDataCollector:
                 break
 
         # Convert to numpy arrays
-        episode_data["observations"] = np.array(episode_data["observations"])
-        episode_data["actions"] = np.array(episode_data["actions"])
-        episode_data["rewards"] = np.array(episode_data["rewards"])
-        episode_data["dones"] = np.array(episode_data["dones"])
-        episode_data["target_positions"] = np.array(episode_data["target_positions"])
+        episode_data["observations"] = np.array(
+            episode_data["observations"], dtype=np.float32
+        )
+        episode_data["actions"] = np.array(episode_data["actions"], dtype=np.float32)
+        episode_data["rewards"] = np.array(episode_data["rewards"], dtype=np.float32)
+        episode_data["dones"] = np.array(episode_data["dones"], dtype=bool)
+        episode_data["target_positions"] = np.array(
+            episode_data["target_positions"], dtype=np.float32
+        )
 
         # Calculate metrics
         episode_data["total_reward"] = np.sum(episode_data["rewards"])
