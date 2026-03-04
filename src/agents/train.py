@@ -20,6 +20,7 @@ from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 
 from src.environment.drone_tracking_env import DroneTrackingEnv
 from src.utils.curriculum_manager import CurriculumManager
+from src.utils.callbacks import MetricsCallback
 
 # Import your existing Drone class
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -124,6 +125,8 @@ def main():
             name_prefix="drone_tracking",
         )
 
+        metrics_callback = MetricsCallback(verbose=1)
+
         print(f"\n[*] Starting training for {args.steps} steps...")
         print(f"    Checkpoints saved to: {save_dir}")
         print(f"    TensorBoard logs: ./tensorboard/")
@@ -131,7 +134,9 @@ def main():
 
         # Train
         model.learn(
-            total_timesteps=args.steps, callback=checkpoint_callback, progress_bar=True
+            total_timesteps=args.steps,
+            callback=[checkpoint_callback, metrics_callback],
+            progress_bar=True,
         )
 
         # Save final model
