@@ -85,7 +85,7 @@ def train_behavior_cloning(data_dir, output_model, epochs=50, batch_size=64, lr=
         def __init__(self):
             super().__init__()
             self.network = nn.Sequential(
-                nn.Linear(6, 64),
+                nn.Linear(2, 64),
                 nn.ReLU(),
                 nn.Linear(64, 64),
                 nn.ReLU(),
