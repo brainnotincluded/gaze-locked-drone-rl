@@ -18,12 +18,12 @@ from drone import Drone
 
 
 class BCPolicy(torch.nn.Module):
-    """BC policy network."""
+    """BC policy network (2D input: angular_error, yaw_rate)."""
 
     def __init__(self):
         super().__init__()
         self.network = torch.nn.Sequential(
-            torch.nn.Linear(6, 64),
+            torch.nn.Linear(2, 64),
             torch.nn.ReLU(),
             torch.nn.Linear(64, 64),
             torch.nn.ReLU(),
