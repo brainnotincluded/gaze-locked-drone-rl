@@ -57,6 +57,9 @@ def main():
         help="Save checkpoint every N steps",
     )
     parser.add_argument("--visualize", action="store_true", help="Enable visualization")
+    parser.add_argument(
+        "--resume", type=str, default=None, help="Path to checkpoint to resume from"
+    )
     args = parser.parse_args()
 
     # Create save directory
@@ -103,26 +106,30 @@ def main():
 
         env = DummyVecEnv([lambda: env])
 
-        # Create PPO agent with LSTM (RecurrentPPO)
+        # Create or load PPO agent with LSTM (RecurrentPPO)
         print("\n[*] Initializing PPO agent...")
         from sb3_contrib import RecurrentPPO
 
-        model = RecurrentPPO(
-            "MlpLstmPolicy",
-            env,
-            verbose=1,
-            learning_rate=3e-4,
-            n_steps=2048,
-            batch_size=64,
-            n_epochs=10,
-            gamma=0.99,
-            gae_lambda=0.95,
-            clip_range=0.2,
-            ent_coef=0.01,
-            tensorboard_log="./tensorboard/",
-        )
-
-        print("[+] Agent initialized")
+        if args.resume:
+            print(f"[*] Resuming from checkpoint: {args.resume}")
+            model = RecurrentPPO.load(args.resume, env=env)
+            print(f"[+] Resumed from {args.resume}")
+        else:
+            model = RecurrentPPO(
+                "MlpLstmPolicy",
+                env,
+                verbose=1,
+                learning_rate=3e-4,
+                n_steps=2048,
+                batch_size=64,
+                n_epochs=10,
+                gamma=0.99,
+                gae_lambda=0.95,
+                clip_range=0.2,
+                ent_coef=0.01,
+                tensorboard_log="./tensorboard/",
+            )
+            print("[+] Agent initialized")
 
         # Setup callbacks
         checkpoint_callback = CheckpointCallback(
