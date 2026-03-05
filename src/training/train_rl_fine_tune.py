@@ -25,7 +25,16 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.training.train_pid_mimic_simple import SimpleTrackingSim, PolicyNetwork
+# Import directly from file to avoid __init__.py issues
+import importlib.util
+
+spec = importlib.util.spec_from_file_location(
+    "train_pid_mimic_simple", str(Path(__file__).parent / "train_pid_mimic_simple.py")
+)
+train_pid_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(train_pid_module)
+SimpleTrackingSim = train_pid_module.SimpleTrackingSim
+PolicyNetwork = train_pid_module.PolicyNetwork
 
 
 class RLTrackingEnv(gym.Env):
