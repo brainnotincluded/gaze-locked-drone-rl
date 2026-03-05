@@ -17,15 +17,14 @@ torch.manual_seed(42)
 
 
 class SimplePID:
-    """Simple PID controller."""
+    """High-performance PID controller for tight tracking."""
 
-    def __init__(self, Kp=0.8, Ki=0.0, Kd=0.2):
+    def __init__(self, Kp=1.5, Ki=0.1, Kd=0.3):  # More aggressive gains
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd
         self.integral = 0
         self.prev_error = 0
-        self.prev_time = 0
 
     def update(self, error, dt=0.02):
         if dt <= 0:
@@ -85,13 +84,10 @@ class SimpleTrackingSim:
         while self.target_angle < -np.pi:
             self.target_angle += 2 * np.pi
 
-        # Calculate reward
+        # Calculate reward (match inference_webots_pos.py exactly)
         angular_error = self.target_angle - self.yaw
-        # Normalize error to [-pi, pi]
-        while angular_error > np.pi:
-            angular_error -= 2 * np.pi
-        while angular_error < -np.pi:
-            angular_error += 2 * np.pi
+        # Wrap to [-pi, pi] exactly like inference_webots_pos.py
+        angular_error = (angular_error + np.pi) % (2 * np.pi) - np.pi
 
         reward = -abs(angular_error)  # Negative error = higher reward when aligned
 
@@ -102,15 +98,12 @@ class SimpleTrackingSim:
     def _get_observation(self):
         """Get 2D observation: [angular_error, yaw_rate]."""
         angular_error = self.target_angle - self.yaw
-        # Normalize to [-pi, pi]
-        while angular_error > np.pi:
-            angular_error -= 2 * np.pi
-        while angular_error < -np.pi:
-            angular_error += 2 * np.pi
+        # Wrap to [-pi, pi] exactly like inference_webots_pos.py
+        angular_error = (angular_error + np.pi) % (2 * np.pi) - np.pi
 
         # Normalize to [-1, 1]
-        angular_error_norm = angular_error / np.pi
-        yaw_rate_norm = self.yaw_rate / self.max_yaw_rate
+        angular_error_norm = np.clip(angular_error / np.pi, -1.0, 1.0)
+        yaw_rate_norm = np.clip(self.yaw_rate / self.max_yaw_rate, -1.0, 1.0)
 
         return np.array([angular_error_norm, yaw_rate_norm], dtype=np.float32)
 
@@ -130,9 +123,9 @@ class PIDDataset(Dataset):
 
 
 class PolicyNetwork(nn.Module):
-    """Deeper policy network."""
+    """Policy network matching inference architecture."""
 
-    def __init__(self, input_dim=2, hidden_dim=128, output_dim=1):
+    def __init__(self, input_dim=2, hidden_dim=64, output_dim=1):
         super().__init__()
         self.network = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
